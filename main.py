@@ -15,10 +15,11 @@ guessed_countries = set()
 # --- Tkinter setup ---
 root = tk.Tk()
 root.title("World Countries Guessing Game")
+root.geometry("1200x700")  # default window size
 
 # --- Matplotlib figure inside Tkinter ---
 fig, ax = plt.subplots(figsize=(12, 6))
-fig.subplots_adjust(left=0, right=1, top=1, bottom=0)  # Remove figure padding
+fig.subplots_adjust(left=0, right=1, top=1, bottom=0)  # remove extra figure padding
 canvas = FigureCanvasTkAgg(fig, master=root)
 canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
@@ -29,7 +30,7 @@ ax.set_ylim(miny, maxy)
 ax.set_aspect("equal")
 ax.axis("off")
 ax.autoscale(False)
-ax.margins(0)  # Remove extra margins
+ax.margins(0)  # remove extra margins
 
 highlight_patches = []
 
@@ -38,7 +39,6 @@ world.boundary.plot(ax=ax, linewidth=0.5, color="lightgray", zorder=1)
 
 # --- Helper functions ---
 def draw_country_highlight(country_name, color):
-    """Draw a country using Polygon patches."""
     country = world[world["NAME"] == country_name]
     for geom in country.geometry:
         if geom.type == "Polygon":
@@ -52,15 +52,12 @@ def draw_country_highlight(country_name, color):
                 highlight_patches.append(poly)
 
 def draw_map(current_country=None):
-    """Redraw all highlights without touching the base map."""
     for patch in highlight_patches:
         patch.remove()
     highlight_patches.clear()
 
-    # Draw guessed countries in green
     for country in guessed_countries:
         draw_country_highlight(country, "limegreen")
-    # Draw current country in gold
     if current_country:
         draw_country_highlight(current_country, "gold")
 
@@ -70,18 +67,28 @@ def draw_map(current_country=None):
         Patch(facecolor="limegreen", label="Guessed")
     ]
     ax.legend(handles=legend_elements, loc="lower left")
-
-    # Title
-    plt.title(f"Guessed {len(guessed_countries)}/{len(countries)} countries", fontsize=13)
-
-    # Force canvas redraw
     canvas.draw()
 
 # Pick first random country
 current_country = random.choice(list(remaining_countries))
 draw_map(current_country)
 
-# --- GUI input ---
+# --- Input field, button, and feedback ---
+bottom_frame = tk.Frame(root)
+bottom_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=5)
+
+# Center-aligned feedback text
+feedback_label = tk.Label(bottom_frame, text="Guess the highlighted country", font=("Arial", 16))
+feedback_label.pack(side=tk.TOP, pady=2)
+feedback_label.pack_configure(anchor="center")  # center alignment
+
+entry_frame = tk.Frame(bottom_frame)
+entry_frame.pack(side=tk.TOP, fill=tk.X)
+
+entry = tk.Entry(entry_frame, font=("Arial", 14))
+entry.pack(side=tk.LEFT, fill=tk.X, expand=1)
+entry.focus()
+
 def submit_guess(event=None):
     global current_country
     guess = entry.get().strip()
@@ -98,7 +105,6 @@ def submit_guess(event=None):
 
     remaining_countries.discard(current_country)
 
-    # Pick next country
     if remaining_countries:
         current_country = random.choice(list(remaining_countries))
         draw_map(current_country)
@@ -108,23 +114,10 @@ def submit_guess(event=None):
         submit_button.config(state=tk.DISABLED)
         entry.config(state=tk.DISABLED)
 
-# --- Input field and button ---
-frame = tk.Frame(root)
-frame.pack(side=tk.BOTTOM, fill=tk.X)
-
-entry = tk.Entry(frame, font=("Arial", 14))
-entry.pack(side=tk.LEFT, fill=tk.X, expand=1)
-entry.focus()
-
-submit_button = tk.Button(frame, text="Submit", font=("Arial", 14), command=submit_guess)
+submit_button = tk.Button(entry_frame, text="Submit", font=("Arial", 14), command=submit_guess)
 submit_button.pack(side=tk.RIGHT)
 
-# Bind Enter key
 entry.bind("<Return>", submit_guess)
 
-# Feedback label
-feedback_label = tk.Label(root, text="Guess the highlighted country", font=("Arial", 16))
-feedback_label.pack(side=tk.TOP)
-
-# Start Tkinter main loop
+# --- Start Tkinter loop ---
 root.mainloop()
