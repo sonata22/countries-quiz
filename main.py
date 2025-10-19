@@ -21,11 +21,17 @@ root = tk.Tk()
 root.title("World Countries Guessing Game")
 root.geometry("1200x700")  # default window size
 
-# --- Handle Ctrl+C instantly ---
+
+# --- Handle Ctrl+C and window close instantly ---
 def _exit_on_sigint(signum, frame):
     root.destroy()
     sys.exit(0)
 signal.signal(signal.SIGINT, _exit_on_sigint)
+
+def _exit_on_close():
+    root.destroy()
+    sys.exit(0)
+root.protocol("WM_DELETE_WINDOW", _exit_on_close)
 
 # --- Matplotlib figure inside Tkinter ---
 fig, ax = plt.subplots(figsize=(12, 6))
