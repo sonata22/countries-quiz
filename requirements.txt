@@ -1,3 +1,5 @@
 geopandas
 matplotlib
 requests
+Pillow
+pycountry

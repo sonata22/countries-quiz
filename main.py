@@ -1,4 +1,3 @@
-
 import geopandas as gpd
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch, Polygon
@@ -7,6 +6,10 @@ import tkinter as tk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import signal
 import sys
+import pycountry
+import requests
+from PIL import Image, ImageTk
+import io
 
 # --- Load world map ---
 WORLD_GEOJSON_URL = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson"
@@ -57,6 +60,27 @@ highlight_patches = []
 # Plot base boundaries once (dark gray)
 world.boundary.plot(ax=ax, linewidth=0.5, color="dimgray", zorder=1)
 
+
+# --- Input field, flag, button, and feedback ---
+bottom_frame = tk.Frame(root)
+bottom_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=5)
+
+# Flag image label (must be defined before show_flag/draw_map)
+flag_label = tk.Label(bottom_frame)
+flag_label.pack(side=tk.TOP, pady=2)
+
+# Center-aligned feedback text
+feedback_label = tk.Label(bottom_frame, text="Guess the highlighted country", font=("Arial", 16))
+feedback_label.pack(side=tk.TOP, pady=2)
+feedback_label.pack_configure(anchor="center")  # center alignment
+
+entry_frame = tk.Frame(bottom_frame)
+entry_frame.pack(side=tk.TOP, fill=tk.X)
+
+entry = tk.Entry(entry_frame, font=("Arial", 14))
+entry.pack(side=tk.LEFT, fill=tk.X, expand=1)
+entry.focus()
+
 # --- Helper functions ---
 def draw_country_highlight(country_name, color):
     country = world[world["NAME"] == country_name]
@@ -70,6 +94,27 @@ def draw_country_highlight(country_name, color):
                 poly = Polygon(list(part.exterior.coords), facecolor=color, edgecolor="dimgray", zorder=2)
                 ax.add_patch(poly)
                 highlight_patches.append(poly)
+
+def show_flag(country_name):
+    # Try to get country code using pycountry
+    try:
+        country = pycountry.countries.lookup(country_name)
+        code = country.alpha_2.lower()
+    except LookupError:
+        flag_label.config(image='', text='')
+        return
+    # Download flag image from flagcdn.com
+    url = f'https://flagcdn.com/w80/{code}.png'
+    try:
+        resp = requests.get(url, timeout=5)
+        resp.raise_for_status()
+        img = Image.open(io.BytesIO(resp.content))
+        img = img.resize((80, 48), Image.Resampling.LANCZOS)
+        tk_img = ImageTk.PhotoImage(img)
+        flag_label.config(image=tk_img, text='')
+        flag_label.image = tk_img  # keep reference
+    except Exception:
+        flag_label.config(image='', text='')
 
 def draw_map(current_country=None):
     for patch in highlight_patches:
@@ -86,6 +131,9 @@ def draw_map(current_country=None):
         draw_country_highlight(country, "limegreen")
     if current_country:
         draw_country_highlight(current_country, "gold")
+        show_flag(current_country)
+    else:
+        flag_label.config(image='', text='')
 
     # Legend
     legend_elements = [
@@ -100,21 +148,17 @@ def draw_map(current_country=None):
 current_country = random.choice(list(remaining_countries))
 draw_map(current_country)
 
-# --- Input field, button, and feedback ---
+
+
+# --- Input field, flag, button, and feedback ---
 bottom_frame = tk.Frame(root)
 bottom_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=5)
 
-# Center-aligned feedback text
-feedback_label = tk.Label(bottom_frame, text="Guess the highlighted country", font=("Arial", 16))
-feedback_label.pack(side=tk.TOP, pady=2)
-feedback_label.pack_configure(anchor="center")  # center alignment
+# Flag image label (must be defined before show_flag/draw_map)
+flag_label = tk.Label(bottom_frame)
+flag_label.pack(side=tk.TOP, pady=2)
 
-entry_frame = tk.Frame(bottom_frame)
-entry_frame.pack(side=tk.TOP, fill=tk.X)
 
-entry = tk.Entry(entry_frame, font=("Arial", 14))
-entry.pack(side=tk.LEFT, fill=tk.X, expand=1)
-entry.focus()
 
 def submit_guess(event=None):
     global current_country
@@ -151,6 +195,8 @@ def submit_guess(event=None):
         feedback_label.config(text=f"🎯 Game over! You guessed {len(guessed_countries)} countries correctly.", fg="blue")
         submit_button.config(state=tk.DISABLED)
         entry.config(state=tk.DISABLED)
+
+    show_flag(current_country)  # Show flag of the current country
 
 submit_button = tk.Button(entry_frame, text="Submit", font=("Arial", 14), command=submit_guess)
 submit_button.pack(side=tk.RIGHT)
