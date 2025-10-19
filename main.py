@@ -1,6 +1,6 @@
 import geopandas as gpd
 import matplotlib.pyplot as plt
-from matplotlib.patches import Patch, Polygon
+from matplotlib.patches import Patch, Polygon, Rectangle
 import random
 import tkinter as tk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -60,15 +60,9 @@ highlight_patches = []
 # Plot base boundaries once (dark gray)
 world.boundary.plot(ax=ax, linewidth=0.5, color="dimgray", zorder=1)
 
-# --- Input field, flag, button, and feedback ---
+# --- Input field, button, and feedback ---
 bottom_frame = tk.Frame(root)
 bottom_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=5)
-
-# Flag image label (must be defined before show_flag/draw_map)
-flag_label = tk.Label(bottom_frame)
-flag_label.pack(side=tk.TOP, pady=2)
-
-
 
 # Center-aligned feedback text
 feedback_label = tk.Label(bottom_frame, text="Guess the highlighted country", font=("Arial", 16))
@@ -96,29 +90,19 @@ def draw_country_highlight(country_name, color):
                 ax.add_patch(poly)
                 highlight_patches.append(poly)
 
-def show_flag(country_name):
-    # Always clear previous flag before showing new one
-    flag_label.config(image='', text='')
+def get_flag_image(country_name):
+    """Return a PIL image of the flag for the given country name, or None if not found."""
     try:
         country = pycountry.countries.lookup(country_name)
         code = country.alpha_2.lower()
-    except LookupError:
-        flag_label.config(image='', text='')
-        return
-    # Download flag image from flagcdn.com
-    url = f'https://flagcdn.com/w80/{code}.png'
-    try:
+        url = f'https://flagcdn.com/w80/{code}.png'
         resp = requests.get(url, timeout=5)
         resp.raise_for_status()
-        img = Image.open(io.BytesIO(resp.content))
+        img = Image.open(io.BytesIO(resp.content)).convert('RGBA')
         img = img.resize((80, 48), Image.Resampling.LANCZOS)
-        tk_img = ImageTk.PhotoImage(img)
-        # Clear previous image to avoid duplicates
-        flag_label.config(image='', text='')
-        flag_label.config(image=tk_img, text='')
-        flag_label.image = tk_img  # keep reference
+        return img
     except Exception:
-        flag_label.config(image='', text='')
+        return None
 
 def draw_map(current_country=None):
     for patch in highlight_patches:
@@ -126,7 +110,6 @@ def draw_map(current_country=None):
     highlight_patches.clear()
 
     # Draw ocean background as a large blue rectangle
-    from matplotlib.patches import Rectangle
     ocean_rect = Rectangle((minx, miny), maxx - minx, maxy - miny, facecolor="#b3d1ff", edgecolor=None, zorder=0)
     ax.add_patch(ocean_rect)
     highlight_patches.append(ocean_rect)
@@ -135,15 +118,27 @@ def draw_map(current_country=None):
         draw_country_highlight(country, "limegreen")
     if current_country:
         draw_country_highlight(current_country, "gold")
-        show_flag(current_country)
-    else:
-        flag_label.config(image='', text='')
-
+    # Draw flag overlay on map (bottom right corner, no margins)
+    if current_country:
+        flag_img = get_flag_image(current_country)
+        if flag_img:
+            try:
+                import numpy as np
+            except ImportError:
+                np = None
+            if np:
+                flag_np = np.array(flag_img)
+                flag_width = (maxx-minx)*0.12
+                flag_height = (maxy-miny)*0.12
+                ax.imshow(
+                    flag_np,
+                    extent=[maxx - flag_width, maxx, miny, miny + flag_height],
+                    zorder=100
+                )
     # Legend
     legend_elements = [
         Patch(facecolor="gold", label="Current"),
         Patch(facecolor="limegreen", label="Guessed"),
-        # Patch(facecolor="#b3d1ff", label="Ocean")
     ]
     ax.legend(handles=legend_elements, loc="lower left")
     canvas.draw()
@@ -154,26 +149,26 @@ draw_map(current_country)
 
 
 
+def end_game():
+    draw_map()
+    feedback_label.config(text=f"🎯 Game over! You guessed {len(guessed_countries)} countries correctly.", fg="blue")
+    submit_button.config(state=tk.DISABLED)
+    entry.config(state=tk.DISABLED)
+
 def submit_guess(event=None):
     global current_country
     guess = entry.get().strip()
     entry.delete(0, tk.END)
     if not guess:
-        # Skip current country
         feedback_label.config(text=f"⏭️ Skipped! It was {current_country}.", fg="orange")
         remaining_countries.discard(current_country)
         if remaining_countries:
             current_country = random.choice(list(remaining_countries))
             draw_map(current_country)
         else:
-            draw_map()
-            flag_label.config(image='', text='')
-            feedback_label.config(text=f"🎯 Game over! You guessed {len(guessed_countries)} countries correctly.", fg="blue")
-            submit_button.config(state=tk.DISABLED)
-            entry.config(state=tk.DISABLED)
+            end_game()
         return
 
-    # Feedback
     if guess.lower() == current_country.lower():
         guessed_countries.add(current_country)
         feedback_label.config(text=f"✅ Correct! It was {current_country}.", fg="green")
@@ -186,11 +181,7 @@ def submit_guess(event=None):
         current_country = random.choice(list(remaining_countries))
         draw_map(current_country)
     else:
-        draw_map()
-        flag_label.config(image='', text='')
-        feedback_label.config(text=f"🎯 Game over! You guessed {len(guessed_countries)} countries correctly.", fg="blue")
-        submit_button.config(state=tk.DISABLED)
-        entry.config(state=tk.DISABLED)
+        end_game()
 
 submit_button = tk.Button(entry_frame, text="Submit", font=("Arial", 14), command=submit_guess)
 submit_button.pack(side=tk.RIGHT)
