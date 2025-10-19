@@ -1,52 +1,70 @@
 import geopandas as gpd
 import matplotlib.pyplot as plt
+import random
 from matplotlib.patches import Patch
 
-# ✅ Load the world dataset directly from Natural Earth's GitHub
+# ✅ Load Natural Earth GeoJSON directly (no local files)
 WORLD_GEOJSON_URL = (
     "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson"
 )
-
-print("Loading world map from Natural Earth GitHub...")
+print("Loading world map...")
 world = gpd.read_file(WORLD_GEOJSON_URL)
-print("Map data loaded successfully!")
+print("Map loaded!")
 
-# Setup
-remaining_countries = set(world["NAME"].dropna())
+# Prepare country lists
+countries = list(world["NAME"].dropna())
+remaining_countries = set(countries)
 guessed_countries = set()
 
-# Draw base map
+# Create figure
 fig, ax = plt.subplots(figsize=(12, 6))
-world.boundary.plot(ax=ax, linewidth=0.5, color="gray")
-plt.title("Guess the Country! Type names in the console.\n(Type 'exit' to quit)", fontsize=14)
-plt.tight_layout()
+plt.ion()  # interactive mode
 plt.show(block=False)
 
-# Game loop
+def draw_map(current_country=None):
+    """Redraws the map with guessed (green) and current (yellow) highlights."""
+    ax.clear()
+    world.boundary.plot(ax=ax, linewidth=0.5, color="gray")
+
+    # Plot guessed countries
+    if guessed_countries:
+        world[world["NAME"].isin(guessed_countries)].plot(ax=ax, color="limegreen", edgecolor="black")
+
+    # Plot current country
+    if current_country:
+        world[world["NAME"] == current_country].plot(ax=ax, color="gold", edgecolor="black")
+
+    # Legend + title
+    legend_elements = [
+        Patch(facecolor="gold", label="Current"),
+        Patch(facecolor="limegreen", label="Guessed"),
+    ]
+    ax.legend(handles=legend_elements, loc="lower left")
+    plt.title(
+        f"Which country is highlighted?\nGuessed {len(guessed_countries)}/{len(countries)}",
+        fontsize=13,
+    )
+    plt.draw()
+
+# --- Game loop ---
 while remaining_countries:
-    answer = input(f"{len(guessed_countries)}/{len(world)} correct. Enter a country name (or 'exit'): ").strip()
+    current_country = random.choice(list(remaining_countries))
+    draw_map(current_country)
+
+    answer = input("Your guess (or 'exit' to quit): ").strip()
     if not answer or answer.lower() == "exit":
         break
 
-    # Case-insensitive matching
-    match = [c for c in remaining_countries if c.lower() == answer.lower()]
-
-    if match:
-        country_name = match[0]
-        guessed_countries.add(country_name)
-        remaining_countries.remove(country_name)
-
-        # Highlight guessed country
-        country_shape = world[world["NAME"] == country_name]
-        country_shape.plot(ax=ax, color="limegreen", edgecolor="black")
-
-        legend_elements = [Patch(facecolor="limegreen", label="Guessed")]
-        ax.legend(handles=legend_elements, loc="lower left")
-        plt.title(f"✅ Correct! {country_name}\n{len(guessed_countries)}/{len(world)} guessed.")
-        plt.draw()
+    if answer.lower() == current_country.lower():
+        print(f"✅ Correct! It was {current_country}.")
+        guessed_countries.add(current_country)
     else:
-        plt.title(f"❌ '{answer}' not found. Try again.")
-        plt.draw()
+        print(f"❌ Wrong! It was {current_country}.")
 
-print(f"\nGame over! You guessed {len(guessed_countries)} countries correctly.")
+    remaining_countries.remove(current_country)
+
+# End screen
+draw_map()
+plt.title(f"🎯 Game over! You guessed {len(guessed_countries)} countries correctly.")
+plt.ioff()
 plt.show()
