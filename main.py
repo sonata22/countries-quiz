@@ -46,24 +46,28 @@ ax.set_ylim(miny, maxy)
 ax.set_aspect("equal")
 ax.axis("off")
 ax.autoscale(False)
+
 ax.margins(0)  # remove extra margins
+
+# Set map background to light blue
+ax.set_facecolor("#b3d1ff")  # light blue
 
 highlight_patches = []
 
-# Plot base boundaries once (light gray)
-world.boundary.plot(ax=ax, linewidth=0.5, color="lightgray", zorder=1)
+# Plot base boundaries once (dark gray)
+world.boundary.plot(ax=ax, linewidth=0.5, color="dimgray", zorder=1)
 
 # --- Helper functions ---
 def draw_country_highlight(country_name, color):
     country = world[world["NAME"] == country_name]
     for geom in country.geometry:
         if geom.geom_type == "Polygon":
-            poly = Polygon(list(geom.exterior.coords), facecolor=color, edgecolor="black", zorder=2)
+            poly = Polygon(list(geom.exterior.coords), facecolor=color, edgecolor="dimgray", zorder=2)
             ax.add_patch(poly)
             highlight_patches.append(poly)
         elif geom.geom_type == "MultiPolygon":
             for part in geom.geoms:
-                poly = Polygon(list(part.exterior.coords), facecolor=color, edgecolor="black", zorder=2)
+                poly = Polygon(list(part.exterior.coords), facecolor=color, edgecolor="dimgray", zorder=2)
                 ax.add_patch(poly)
                 highlight_patches.append(poly)
 
@@ -71,6 +75,12 @@ def draw_map(current_country=None):
     for patch in highlight_patches:
         patch.remove()
     highlight_patches.clear()
+
+    # Draw ocean background as a large blue rectangle
+    from matplotlib.patches import Rectangle
+    ocean_rect = Rectangle((minx, miny), maxx - minx, maxy - miny, facecolor="#b3d1ff", edgecolor=None, zorder=0)
+    ax.add_patch(ocean_rect)
+    highlight_patches.append(ocean_rect)
 
     for country in guessed_countries:
         draw_country_highlight(country, "limegreen")
@@ -80,7 +90,8 @@ def draw_map(current_country=None):
     # Legend
     legend_elements = [
         Patch(facecolor="gold", label="Current"),
-        Patch(facecolor="limegreen", label="Guessed")
+        Patch(facecolor="limegreen", label="Guessed"),
+        # Patch(facecolor="#b3d1ff", label="Ocean")
     ]
     ax.legend(handles=legend_elements, loc="lower left")
     canvas.draw()
