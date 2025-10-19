@@ -104,6 +104,11 @@ def get_flag_image(country_name):
     except Exception:
         return None
 
+def update_counter():
+    guessed = len(guessed_countries)
+    total = len(countries)
+    root.title(f"World Countries Guessing Game ({guessed}/{total})")
+
 def draw_map(current_country=None):
     for patch in highlight_patches:
         patch.remove()
@@ -142,6 +147,7 @@ def draw_map(current_country=None):
     ]
     ax.legend(handles=legend_elements, loc="lower left")
     canvas.draw()
+    update_counter()
 
 # Pick first random country
 current_country = random.choice(list(remaining_countries))
@@ -154,6 +160,7 @@ def end_game():
     feedback_label.config(text=f"🎯 Game over! You guessed {len(guessed_countries)} countries correctly.", fg="blue")
     submit_button.config(state=tk.DISABLED)
     entry.config(state=tk.DISABLED)
+    update_counter()
 
 def submit_guess(event=None):
     global current_country
@@ -182,6 +189,7 @@ def submit_guess(event=None):
         draw_map(current_country)
     else:
         end_game()
+    update_counter()
 
 submit_button = tk.Button(entry_frame, text="Submit", font=("Arial", 14), command=submit_guess)
 submit_button.pack(side=tk.RIGHT)
