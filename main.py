@@ -1,9 +1,12 @@
+
 import geopandas as gpd
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch, Polygon
 import random
 import tkinter as tk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import signal
+import sys
 
 # --- Load world map ---
 WORLD_GEOJSON_URL = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson"
@@ -12,10 +15,17 @@ countries = list(world["NAME"].dropna())
 remaining_countries = set(countries)
 guessed_countries = set()
 
+
 # --- Tkinter setup ---
 root = tk.Tk()
 root.title("World Countries Guessing Game")
 root.geometry("1200x700")  # default window size
+
+# --- Handle Ctrl+C instantly ---
+def _exit_on_sigint(signum, frame):
+    root.destroy()
+    sys.exit(0)
+signal.signal(signal.SIGINT, _exit_on_sigint)
 
 # --- Matplotlib figure inside Tkinter ---
 fig, ax = plt.subplots(figsize=(12, 6))
@@ -41,11 +51,11 @@ world.boundary.plot(ax=ax, linewidth=0.5, color="lightgray", zorder=1)
 def draw_country_highlight(country_name, color):
     country = world[world["NAME"] == country_name]
     for geom in country.geometry:
-        if geom.type == "Polygon":
+        if geom.geom_type == "Polygon":
             poly = Polygon(list(geom.exterior.coords), facecolor=color, edgecolor="black", zorder=2)
             ax.add_patch(poly)
             highlight_patches.append(poly)
-        elif geom.type == "MultiPolygon":
+        elif geom.geom_type == "MultiPolygon":
             for part in geom.geoms:
                 poly = Polygon(list(part.exterior.coords), facecolor=color, edgecolor="black", zorder=2)
                 ax.add_patch(poly)
