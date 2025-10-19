@@ -2,20 +2,24 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch, Polygon
 import random
+import tkinter as tk
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 # Load world map
 WORLD_GEOJSON_URL = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson"
 world = gpd.read_file(WORLD_GEOJSON_URL)
-
 countries = list(world["NAME"].dropna())
 remaining_countries = set(countries)
 guessed_countries = set()
 
-# Create figure
-fig, ax = plt.subplots(figsize=(12, 6))
+# --- Tkinter setup ---
+root = tk.Tk()
+root.title("World Countries Guessing Game")
 
-# Plot base map once
-world.boundary.plot(ax=ax, linewidth=0.5, color="gray", zorder=1)
+# Figure
+fig, ax = plt.subplots(figsize=(12, 6))
+canvas = FigureCanvasTkAgg(fig, master=root)
+canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
 # Fixed axis limits
 minx, miny, maxx, maxy = world.total_bounds
@@ -23,14 +27,15 @@ ax.set_xlim(minx, maxx)
 ax.set_ylim(miny, maxy)
 ax.set_aspect("equal")
 ax.axis("off")
-ax.autoscale(False)  # prevents autoscaling
+ax.autoscale(False)
 
-# Store Polygon patches for highlights
 highlight_patches = []
 
+# Plot the base boundaries once (light gray)
+world.boundary.plot(ax=ax, linewidth=0.5, color="lightgray", zorder=1)
+
 def draw_country_highlight(country_name, color):
-    """Draw a country using Polygon patches instead of GeoDataFrame.plot."""
-    global highlight_patches
+    """Draw a country using Polygon patches."""
     country = world[world["NAME"] == country_name]
     for geom in country.geometry:
         if geom.type == "Polygon":
@@ -45,16 +50,14 @@ def draw_country_highlight(country_name, color):
 
 def draw_map(current_country=None):
     """Redraw all highlights without touching the base map."""
-    # Remove previous highlight patches
     for patch in highlight_patches:
         patch.remove()
     highlight_patches.clear()
 
-    # Draw guessed countries
+    # Draw guessed countries in green
     for country in guessed_countries:
         draw_country_highlight(country, "limegreen")
-
-    # Draw current country
+    # Draw current country in gold
     if current_country:
         draw_country_highlight(current_country, "gold")
 
@@ -64,33 +67,45 @@ def draw_map(current_country=None):
         Patch(facecolor="limegreen", label="Guessed")
     ]
     ax.legend(handles=legend_elements, loc="lower left")
-    plt.title(f"Which country is highlighted?\nGuessed {len(guessed_countries)}/{len(countries)}", fontsize=13)
+    plt.title(f"Guessed {len(guessed_countries)}/{len(countries)} countries", fontsize=13)
+    canvas.draw()
 
-    fig.canvas.draw()
-    fig.canvas.flush_events()
+# --- Pick first country ---
+current_country = random.choice(list(remaining_countries))
+draw_map(current_country)
 
-# --- Game loop ---
-plt.ion()
-plt.show(block=False)
-
-while remaining_countries:
-    current_country = random.choice(list(remaining_countries))
-    draw_map(current_country)
-
-    answer = input("Your guess (or 'exit' to quit): ").strip()
-    if not answer or answer.lower() == "exit":
-        break
-
-    if answer.lower() == current_country.lower():
-        print(f"✅ Correct! It was {current_country}.")
+# --- GUI input ---
+def submit_guess():
+    global current_country
+    guess = entry.get().strip()
+    entry.delete(0, tk.END)
+    if not guess:
+        return
+    if guess.lower() == current_country.lower():
         guessed_countries.add(current_country)
+    remaining_countries.discard(current_country)
+
+    if remaining_countries:
+        current_country = random.choice(list(remaining_countries))
+        draw_map(current_country)
     else:
-        print(f"❌ Wrong! It was {current_country}.")
+        draw_map()
+        title_label.config(text=f"🎯 Game over! You guessed {len(guessed_countries)} countries correctly.")
+        submit_button.config(state=tk.DISABLED)
 
-    remaining_countries.remove(current_country)
+# Input field and button
+frame = tk.Frame(root)
+frame.pack(side=tk.BOTTOM, fill=tk.X)
 
-# Final map
-draw_map()
-plt.title(f"🎯 Game over! You guessed {len(guessed_countries)} countries correctly.")
-plt.ioff()
-plt.show()
+entry = tk.Entry(frame, font=("Arial", 14))
+entry.pack(side=tk.LEFT, fill=tk.X, expand=1)
+entry.focus()
+
+submit_button = tk.Button(frame, text="Submit", font=("Arial", 14), command=submit_guess)
+submit_button.pack(side=tk.RIGHT)
+
+title_label = tk.Label(root, text="Guess the highlighted country", font=("Arial", 16))
+title_label.pack(side=tk.TOP)
+
+# Start Tkinter loop
+root.mainloop()
