@@ -18,6 +18,7 @@ root.title("World Countries Guessing Game")
 
 # --- Matplotlib figure inside Tkinter ---
 fig, ax = plt.subplots(figsize=(12, 6))
+fig.subplots_adjust(left=0, right=1, top=1, bottom=0)  # Remove figure padding
 canvas = FigureCanvasTkAgg(fig, master=root)
 canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
 
@@ -28,10 +29,11 @@ ax.set_ylim(miny, maxy)
 ax.set_aspect("equal")
 ax.axis("off")
 ax.autoscale(False)
+ax.margins(0)  # Remove extra margins
 
 highlight_patches = []
 
-# Plot base boundaries once
+# Plot base boundaries once (light gray)
 world.boundary.plot(ax=ax, linewidth=0.5, color="lightgray", zorder=1)
 
 # --- Helper functions ---
@@ -69,8 +71,10 @@ def draw_map(current_country=None):
     ]
     ax.legend(handles=legend_elements, loc="lower left")
 
-    # Update the title
+    # Title
     plt.title(f"Guessed {len(guessed_countries)}/{len(countries)} countries", fontsize=13)
+
+    # Force canvas redraw
     canvas.draw()
 
 # Pick first random country
@@ -122,5 +126,5 @@ entry.bind("<Return>", submit_guess)
 feedback_label = tk.Label(root, text="Guess the highlighted country", font=("Arial", 16))
 feedback_label.pack(side=tk.TOP)
 
-# Start the Tkinter main loop
+# Start Tkinter main loop
 root.mainloop()
