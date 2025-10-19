@@ -60,7 +60,6 @@ highlight_patches = []
 # Plot base boundaries once (dark gray)
 world.boundary.plot(ax=ax, linewidth=0.5, color="dimgray", zorder=1)
 
-
 # --- Input field, flag, button, and feedback ---
 bottom_frame = tk.Frame(root)
 bottom_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=5)
@@ -68,6 +67,8 @@ bottom_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=5)
 # Flag image label (must be defined before show_flag/draw_map)
 flag_label = tk.Label(bottom_frame)
 flag_label.pack(side=tk.TOP, pady=2)
+
+
 
 # Center-aligned feedback text
 feedback_label = tk.Label(bottom_frame, text="Guess the highlighted country", font=("Arial", 16))
@@ -96,7 +97,8 @@ def draw_country_highlight(country_name, color):
                 highlight_patches.append(poly)
 
 def show_flag(country_name):
-    # Try to get country code using pycountry
+    # Always clear previous flag before showing new one
+    flag_label.config(image='', text='')
     try:
         country = pycountry.countries.lookup(country_name)
         code = country.alpha_2.lower()
@@ -111,6 +113,8 @@ def show_flag(country_name):
         img = Image.open(io.BytesIO(resp.content))
         img = img.resize((80, 48), Image.Resampling.LANCZOS)
         tk_img = ImageTk.PhotoImage(img)
+        # Clear previous image to avoid duplicates
+        flag_label.config(image='', text='')
         flag_label.config(image=tk_img, text='')
         flag_label.image = tk_img  # keep reference
     except Exception:
@@ -150,16 +154,6 @@ draw_map(current_country)
 
 
 
-# --- Input field, flag, button, and feedback ---
-bottom_frame = tk.Frame(root)
-bottom_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=5)
-
-# Flag image label (must be defined before show_flag/draw_map)
-flag_label = tk.Label(bottom_frame)
-flag_label.pack(side=tk.TOP, pady=2)
-
-
-
 def submit_guess(event=None):
     global current_country
     guess = entry.get().strip()
@@ -173,6 +167,7 @@ def submit_guess(event=None):
             draw_map(current_country)
         else:
             draw_map()
+            flag_label.config(image='', text='')
             feedback_label.config(text=f"🎯 Game over! You guessed {len(guessed_countries)} countries correctly.", fg="blue")
             submit_button.config(state=tk.DISABLED)
             entry.config(state=tk.DISABLED)
@@ -192,11 +187,10 @@ def submit_guess(event=None):
         draw_map(current_country)
     else:
         draw_map()
+        flag_label.config(image='', text='')
         feedback_label.config(text=f"🎯 Game over! You guessed {len(guessed_countries)} countries correctly.", fg="blue")
         submit_button.config(state=tk.DISABLED)
         entry.config(state=tk.DISABLED)
-
-    show_flag(current_country)  # Show flag of the current country
 
 submit_button = tk.Button(entry_frame, text="Submit", font=("Arial", 14), command=submit_guess)
 submit_button.pack(side=tk.RIGHT)
