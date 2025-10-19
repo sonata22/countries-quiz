@@ -110,6 +110,17 @@ def submit_guess(event=None):
     guess = entry.get().strip()
     entry.delete(0, tk.END)
     if not guess:
+        # Skip current country
+        feedback_label.config(text=f"⏭️ Skipped! It was {current_country}.", fg="orange")
+        remaining_countries.discard(current_country)
+        if remaining_countries:
+            current_country = random.choice(list(remaining_countries))
+            draw_map(current_country)
+        else:
+            draw_map()
+            feedback_label.config(text=f"🎯 Game over! You guessed {len(guessed_countries)} countries correctly.", fg="blue")
+            submit_button.config(state=tk.DISABLED)
+            entry.config(state=tk.DISABLED)
         return
 
     # Feedback
