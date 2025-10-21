@@ -11,7 +11,6 @@ import pycountry
 import requests
 from PIL import Image
 import io
-import time
 
 
 # --- Load world map ---
@@ -260,30 +259,14 @@ DEFAULT_XLIM = (minx, maxx)
 DEFAULT_YLIM = (miny, maxy)
 
 
-def animate_zoom(
-    target_xlim, target_ylim, steps=15, duration=0.01
-):  # duration quartered
-    start_xlim = ax.get_xlim()
-    start_ylim = ax.get_ylim()
-    for i in range(1, steps + 1):
-        t = i / steps
-        # Linear interpolation
-        new_xlim = (
-            start_xlim[0] + (target_xlim[0] - start_xlim[0]) * t,
-            start_xlim[1] + (target_xlim[1] - start_xlim[1]) * t,
-        )
-        new_ylim = (
-            start_ylim[0] + (target_ylim[0] - start_ylim[0]) * t,
-            start_ylim[1] + (target_ylim[1] - start_ylim[1]) * t,
-        )
-        ax.set_xlim(new_xlim)
-        ax.set_ylim(new_ylim)
-        ax.set_aspect("equal")
-        ax.autoscale(False)
-        ax.margins(0)
-        canvas.draw()
-        root.update_idletasks()
-        time.sleep(duration / steps)
+def animate_zoom(target_xlim, target_ylim, steps=1, duration=0):  # No animation
+    ax.set_xlim(target_xlim)
+    ax.set_ylim(target_ylim)
+    ax.set_aspect("equal")
+    ax.autoscale(False)
+    ax.margins(0)
+    canvas.draw()
+    root.update_idletasks()
 
 
 def zoom(factor, center=None):
@@ -338,22 +321,24 @@ def zoom(factor, center=None):
 
 # --- Mouse wheel zoom at cursor position ---
 def on_mouse_wheel(event):
-    x_pixel = event.x
-    y_pixel = event.y
+    widget = canvas.get_tk_widget()
+    # Only zoom if the mouse is over the map canvas and this is a real scroll event
+    if widget.winfo_containing(event.x_root, event.y_root) == widget:
+        x_pixel = event.x
+        y_pixel = event.y
 
-    # Convert pixel position to axes coordinates
-    inv = ax.transData.inverted()
-    xdata, ydata = inv.transform((x_pixel, y_pixel))
+        inv = ax.transData.inverted()
+        xdata, ydata = inv.transform((x_pixel, y_pixel))
 
-    # Zoom factor
-    if hasattr(event, "delta"):
-        factor = 0.8 if event.delta > 0 else 1.25
-    elif hasattr(event, "num"):
-        factor = 0.8 if event.num == 4 else 1.25
-    else:
-        factor = 1.0
+        # Only zoom once per event
+        if hasattr(event, "delta"):
+            factor = 0.8 if event.delta > 0 else 1.25
+        elif hasattr(event, "num"):
+            factor = 0.8 if event.num == 4 else 1.25
+        else:
+            factor = 1.0
 
-    zoom(factor, center=(xdata, ydata))
+        zoom(factor, center=(xdata, ydata))
 
 
 # Bind mouse wheel to zoom at cursor
