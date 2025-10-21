@@ -1,15 +1,15 @@
 import geopandas as gpd
 import matplotlib.pyplot as plt
-from matplotlib.patches import Patch, Polygon, Rectangle
+from matplotlib.patches import Patch, Polygon
 import random
 import tkinter as tk
-import tkinter.ttk as ttk  # ADDED
+import tkinter.ttk as ttk
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import signal
 import sys
 import pycountry
 import requests
-from PIL import Image, ImageTk  # Add ImageTk here
+from PIL import Image, ImageTk
 import io
 
 
@@ -20,7 +20,6 @@ countries = list(world["NAME"].dropna())
 remaining_countries = set(countries)
 guessed_countries = set()
 
-highlight_patches = []
 
 minx, miny, maxx, maxy = world.total_bounds
 
@@ -30,21 +29,27 @@ DEFAULT_YLIM = (miny, maxy)
 
 # --- Tkinter setup ---
 root = tk.Tk()
-root.title("World Countries Guessing Game")
 root.geometry("1920x1080")
-root.configure(bg="#f5f5f5")  # MODERN BG
+COMMON_FONT = ("Segoe UI", 16)
+COMMON_BG = "#f5f5f5"
+COMMON_PAD = 8
 
-# --- Modern ttk style ---
 style = ttk.Style()
 style.theme_use("clam")
-style.configure("TFrame", background="#f5f5f5")
-style.configure("TLabel", background="#f5f5f5", font=("Segoe UI", 16))
-style.configure("TButton", font=("Segoe UI", 14), padding=6)
-style.configure("TEntry", font=("Segoe UI", 14), padding=6)
+style.configure("TFrame", background=COMMON_BG)
+style.configure(
+    "TLabel",
+    background=COMMON_BG,
+    foreground="#222",
+    font=COMMON_FONT,
+    padding=COMMON_PAD,
+)
+style.configure("TButton", font=COMMON_FONT, padding=COMMON_PAD)
+style.configure("TEntry", font=COMMON_FONT, padding=COMMON_PAD)
 
 
 # --- Handle Ctrl+C and window close instantly ---
-def _exit_on_sigint(signum, frame):
+def _exit_on_sigint():
     root.destroy()
     sys.exit(0)
 
@@ -71,15 +76,12 @@ ax.set_aspect("equal")
 ax.axis("off")
 ax.autoscale(False)
 ax.margins(0)
-ax.set_facecolor("#b3d1ff")
+fig.patch.set_facecolor("#b3d1ff")
 
 # Draw country borders for visibility
 world.boundary.plot(ax=ax, linewidth=0.5, color="dimgray", zorder=1)
 
-# --- Input field, button, feedback, and flag moved to the right of the map ---
-
 # --- Layout: map and controls in separate columns ---
-
 main_frame = ttk.Frame(root)
 main_frame.pack(fill=tk.BOTH, expand=1)
 
@@ -90,29 +92,23 @@ main_frame.columnconfigure(0, weight=3)
 main_frame.rowconfigure(0, weight=1)
 
 canvas = FigureCanvasTkAgg(fig, master=map_frame)
-canvas.get_tk_widget().pack(
-    fill=tk.BOTH, expand=1, padx=0, pady=0
-)  # No padding for map
+canvas.get_tk_widget().pack(fill=tk.BOTH, expand=1, padx=0, pady=0)
 
 # Right column: controls (fixed width)
 controls_frame = ttk.Frame(main_frame, width=300)
-controls_frame.grid(
-    row=0, column=1, sticky="ns", padx=10, pady=10
-)  # <-- Remove horizontal padding
+controls_frame.grid(row=0, column=1, sticky="ns", padx=10, pady=10)
 main_frame.columnconfigure(1, weight=0)  # Prevent stretching
 
 controls_frame.pack_propagate(False)  # Prevent shrinking when window is resized
 
-feedback_label = ttk.Label(
-    controls_frame, text="Which country is highlighted?", font=("Segoe UI", 16)
-)
+feedback_label = ttk.Label(controls_frame, text="Which country is highlighted?")
 feedback_label.pack(side=tk.TOP, pady=8, anchor="center")
 
 entry_frame = ttk.Frame(controls_frame)
-entry_frame.pack(side=tk.TOP, fill=tk.X, pady=10)
+entry_frame.pack(side=tk.TOP, fill=tk.X, pady=0)
 
-entry = ttk.Entry(entry_frame, font=("Segoe UI", 14))
-entry.pack(side=tk.TOP, fill=tk.X, expand=1, padx=0)  # Remove left padding
+entry = ttk.Entry(entry_frame, font=COMMON_FONT)
+entry.pack(side=tk.TOP, fill=tk.X, expand=1, padx=0, ipady=0)
 
 
 def submit_guess(event=None):
@@ -138,7 +134,7 @@ def submit_guess(event=None):
     if not guess:
         attempt_result_label.config(text="Skipped", foreground="orange")
         feedback_label.config(
-            text=f"⏭️ Skipped! It was {current_country}.", foreground="orange"
+            text=f"Skipped! It was {current_country}.", foreground="orange"
         )
         remaining_countries.discard(current_country)
         if remaining_countries:
@@ -152,12 +148,12 @@ def submit_guess(event=None):
         attempt_result_label.config(text="Correct", foreground="green")
         guessed_countries.add(current_country)
         feedback_label.config(
-            text=f"✅ Correct! It was {current_country}.", foreground="green"
+            text=f"Correct! It was {current_country}.", foreground="green"
         )
     else:
         attempt_result_label.config(text="Wrong", foreground="red")
         feedback_label.config(
-            text=f"❌ Wrong! It was {current_country}.", foreground="red"
+            text=f"Wrong! It was {current_country}.", foreground="red"
         )
 
     remaining_countries.discard(current_country)
@@ -188,7 +184,6 @@ def draw_country_highlight(country_name, color):
                 zorder=2,
             )
             ax.add_patch(poly)
-            highlight_patches.append(poly)
         elif geom.geom_type == "MultiPolygon":
             for part in geom.geoms:
                 poly = Polygon(
@@ -198,7 +193,6 @@ def draw_country_highlight(country_name, color):
                     zorder=2,
                 )
                 ax.add_patch(poly)
-                highlight_patches.append(poly)
 
 
 def get_flag_image(country_name):
@@ -213,40 +207,29 @@ def get_flag_image(country_name):
         img = img.resize((80, 48), Image.Resampling.LANCZOS)
         return img
     except Exception:
-        return None
+        img = Image.new("RGBA", (80, 48), (245, 245, 245, 255))
+        return img
 
 
 def update_counter():
     guessed = len(guessed_countries)
     total = len(countries)
-    root.title(f"World Countries Guessing Game ({guessed}/{total})")
+    root.title(f"World Countries Quiz ({guessed}/{total})")
 
 
 def draw_map(current_country=None):
-    for patch in highlight_patches:
-        patch.remove()
-    highlight_patches.clear()
-
-    # Draw ocean background as a large blue rectangle
-    ocean_rect = Rectangle(
-        (minx, miny),
-        maxx - minx,
-        maxy - miny,
-        facecolor="#b3d1ff",
-        edgecolor=None,
-        zorder=0,
-    )
-    ax.add_patch(ocean_rect)
-    highlight_patches.append(ocean_rect)
-
+    ax.clear()
+    ax.set_facecolor("#b3d1ff")
+    world.boundary.plot(ax=ax, linewidth=0.5, color="dimgray", zorder=1)
+    LIGHT_GREEN = "#b6eeb7"
+    LIGHT_YELLOW = "#fff9b1"
     for country in guessed_countries:
-        draw_country_highlight(country, "limegreen")
+        draw_country_highlight(country, LIGHT_GREEN)
     if current_country:
-        draw_country_highlight(current_country, "gold")
-    # Legend
+        draw_country_highlight(current_country, LIGHT_YELLOW)
     legend_elements = [
-        Patch(facecolor="gold", label="Current"),
-        Patch(facecolor="limegreen", label="Guessed"),
+        Patch(facecolor=LIGHT_YELLOW, label="Current"),
+        Patch(facecolor=LIGHT_GREEN, label="Guessed"),
     ]
     ax.legend(handles=legend_elements, loc="lower left")
     canvas.draw()
@@ -261,7 +244,7 @@ draw_map(current_country)
 def end_game():
     draw_map()
     feedback_label.config(
-        text=f"🎯 Game over! You guessed {len(guessed_countries)} countries correctly.",
+        text=f"Game over! You guessed {len(guessed_countries)} countries correctly.",
         foreground="blue",  # ttk uses 'foreground'
     )
     submit_button.config(state=tk.DISABLED)
@@ -431,21 +414,20 @@ def zoom(factor, center=None):
     canvas.draw()
 
 
-# ...after submit_button.pack(...) and before root.mainloop()...
-
+# --- Result display area ---
 divider = ttk.Separator(controls_frame, orient="horizontal")
 divider.pack(side=tk.TOP, fill=tk.X, pady=10)
 
 result_frame = ttk.Frame(controls_frame)
 result_frame.pack(side=tk.TOP, fill=tk.X, pady=5)
 
-last_country_label = ttk.Label(result_frame, text="", font=("Segoe UI", 14))
+last_country_label = ttk.Label(result_frame, text="")
 last_country_label.pack(side=tk.TOP, pady=(0, 5))
 
 flag_label = ttk.Label(result_frame)
 flag_label.pack(side=tk.TOP, pady=(0, 5))
 
-attempt_result_label = ttk.Label(result_frame, text="", font=("Segoe UI", 14))
+attempt_result_label = ttk.Label(result_frame, text="")
 attempt_result_label.pack(side=tk.TOP, pady=(0, 5))
 
 # --- Start Tkinter loop ---
