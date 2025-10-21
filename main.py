@@ -52,13 +52,6 @@ def _exit_on_close():
 
 root.protocol("WM_DELETE_WINDOW", _exit_on_close)
 
-# --- Header ---
-header_frame = ttk.Frame(root)
-header_frame.pack(side=tk.TOP, fill=tk.X, pady=(20, 10))
-header_label = ttk.Label(
-    header_frame, text="🌍 World Countries Quiz", font=("Segoe UI", 24, "bold")
-)
-header_label.pack(anchor="center")
 
 # --- Matplotlib figure inside Tkinter ---
 fig, ax = plt.subplots(figsize=(12, 6))
