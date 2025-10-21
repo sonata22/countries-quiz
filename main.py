@@ -250,7 +250,6 @@ DEFAULT_YLIM = (miny, maxy)
 
 
 def zoom(factor, center=None):
-    # Always use the default aspect ratio for zoom calculations
     cur_xlim = ax.get_xlim()
     cur_ylim = ax.get_ylim()
     default_x_range = DEFAULT_XLIM[1] - DEFAULT_XLIM[0]
@@ -263,37 +262,33 @@ def zoom(factor, center=None):
     else:
         x_center, y_center = center
 
-    # Calculate new x range and y range based on aspect ratio
     x_range = cur_xlim[1] - cur_xlim[0]
     new_x_range = x_range * factor
     new_y_range = new_x_range * aspect
 
+    # Prevent zooming in beyond 500% (minimum range)
+    min_x_range = default_x_range / 5.0
+    min_y_range = default_y_range / 5.0
+    if new_x_range < min_x_range or new_y_range < min_y_range:
+        # Do nothing: keep current limits, don't recenter
+        new_xlim = cur_xlim
+        new_ylim = cur_ylim
     # Clamp zoom out to default limits
-    if new_x_range >= default_x_range or new_y_range >= default_y_range:
-        # Always reset to default limits and aspect ratio
+    elif new_x_range >= default_x_range or new_y_range >= default_y_range:
         new_xlim = DEFAULT_XLIM
         new_ylim = DEFAULT_YLIM
     else:
-        # Prevent zooming in too far (minimum range)
-        min_x_range = default_x_range * 0.05
-        min_y_range = default_y_range * 0.05
-        if new_x_range < min_x_range:
-            new_x_range = min_x_range
-            new_y_range = min_y_range
-
         # Calculate new limits centered at cursor
         new_xlim = (x_center - new_x_range / 2, x_center + new_x_range / 2)
         new_ylim = (y_center - new_y_range / 2, y_center + new_y_range / 2)
 
-        # Clamp to default bounds if needed (for zoom in)
-        # Clamp x
+        # Clamp to default bounds as usual
         if new_xlim[0] < DEFAULT_XLIM[0]:
             shift = DEFAULT_XLIM[0] - new_xlim[0]
             new_xlim = (DEFAULT_XLIM[0], new_xlim[1] + shift)
         if new_xlim[1] > DEFAULT_XLIM[1]:
             shift = new_xlim[1] - DEFAULT_XLIM[1]
             new_xlim = (new_xlim[0] - shift, DEFAULT_XLIM[1])
-        # Clamp y
         if new_ylim[0] < DEFAULT_YLIM[0]:
             shift = DEFAULT_YLIM[0] - new_ylim[0]
             new_ylim = (DEFAULT_YLIM[0], new_ylim[1] + shift)
@@ -303,7 +298,7 @@ def zoom(factor, center=None):
 
     ax.set_xlim(new_xlim)
     ax.set_ylim(new_ylim)
-    ax.set_aspect("equal")  # Always keep aspect ratio
+    ax.set_aspect("equal")
     ax.autoscale(False)
     ax.margins(0)
     canvas.draw()
@@ -333,6 +328,78 @@ def on_mouse_wheel(event):
 canvas.get_tk_widget().bind("<MouseWheel>", on_mouse_wheel)  # Windows/macOS
 canvas.get_tk_widget().bind("<Button-4>", on_mouse_wheel)  # Linux scroll up
 canvas.get_tk_widget().bind("<Button-5>", on_mouse_wheel)  # Linux scroll down
+
+# --- Drag to pan functionality ---
+_drag_data = {"x": None, "y": None, "xlim": None, "ylim": None, "dragging": False}
+
+
+def on_mouse_press(event):
+    # Only start drag if left mouse button and not zoomed out to default
+    if event.num == 1 or (hasattr(event, "button") and event.button == 1):
+        cur_xlim = ax.get_xlim()
+        cur_ylim = ax.get_ylim()
+        # Only allow drag if zoomed in
+        if cur_xlim != DEFAULT_XLIM or cur_ylim != DEFAULT_YLIM:
+            _drag_data["x"] = event.x
+            _drag_data["y"] = event.y
+            _drag_data["xlim"] = cur_xlim
+            _drag_data["ylim"] = cur_ylim
+            _drag_data["dragging"] = True
+
+
+def on_mouse_release(event):
+    _drag_data["dragging"] = False
+
+
+def on_mouse_motion(event):
+    if _drag_data["dragging"]:
+        # Convert pixel movement to data coordinates
+        inv = ax.transData.inverted()
+        x0, y0 = inv.transform((_drag_data["x"], _drag_data["y"]))
+        x1, y1 = inv.transform((event.x, event.y))
+        delta_x = x0 - x1
+        delta_y = y1 - y0  # REVERSED vertical direction
+
+        # Calculate new limits
+        new_xlim = (_drag_data["xlim"][0] + delta_x, _drag_data["xlim"][1] + delta_x)
+        new_ylim = (_drag_data["ylim"][0] + delta_y, _drag_data["ylim"][1] + delta_y)
+
+        # Clamp to default bounds
+        x_range = new_xlim[1] - new_xlim[0]
+        y_range = new_ylim[1] - new_ylim[0]
+
+        # Prevent panning if at maximum zoom in (minimum range)
+        min_x_range = (DEFAULT_XLIM[1] - DEFAULT_XLIM[0]) / 3.0
+        min_y_range = (DEFAULT_YLIM[1] - DEFAULT_YLIM[0]) / 3.0
+        if abs(x_range - min_x_range) < 1e-8 and abs(y_range - min_y_range) < 1e-8:
+            # If at max zoom in, clamp to center
+            center_x = (DEFAULT_XLIM[0] + DEFAULT_XLIM[1]) / 2
+            center_y = (DEFAULT_YLIM[0] + DEFAULT_YLIM[1]) / 2
+            new_xlim = (center_x - min_x_range / 2, center_x + min_x_range / 2)
+            new_ylim = (center_y - min_y_range / 2, center_y + min_y_range / 2)
+        else:
+            # Clamp to default bounds as usual
+            if new_xlim[0] < DEFAULT_XLIM[0]:
+                new_xlim = (DEFAULT_XLIM[0], DEFAULT_XLIM[0] + x_range)
+            if new_xlim[1] > DEFAULT_XLIM[1]:
+                new_xlim = (DEFAULT_XLIM[1] - x_range, DEFAULT_XLIM[1])
+            if new_ylim[0] < DEFAULT_YLIM[0]:
+                new_ylim = (DEFAULT_YLIM[0], DEFAULT_YLIM[0] + y_range)
+            if new_ylim[1] > DEFAULT_YLIM[1]:
+                new_ylim = (DEFAULT_YLIM[1] - y_range, DEFAULT_YLIM[1])
+
+        ax.set_xlim(new_xlim)
+        ax.set_ylim(new_ylim)
+        ax.set_aspect("equal")
+        ax.autoscale(False)
+        ax.margins(0)
+        canvas.draw()
+
+
+# Bind mouse events for drag-to-pan
+canvas.get_tk_widget().bind("<ButtonPress-1>", on_mouse_press)
+canvas.get_tk_widget().bind("<ButtonRelease-1>", on_mouse_release)
+canvas.get_tk_widget().bind("<B1-Motion>", on_mouse_motion)
 
 # --- Start Tkinter loop ---
 root.mainloop()
