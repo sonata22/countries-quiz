@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Patch, Polygon, Rectangle
 import random
 import tkinter as tk
+import tkinter.ttk as ttk  # ADDED
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import signal
 import sys
@@ -23,7 +24,16 @@ guessed_countries = set()
 # --- Tkinter setup ---
 root = tk.Tk()
 root.title("World Countries Guessing Game")
-root.geometry("1200x700")  # default window size
+root.geometry("1200x700")
+root.configure(bg="#f5f5f5")  # MODERN BG
+
+# --- Modern ttk style ---
+style = ttk.Style()
+style.theme_use("clam")
+style.configure("TFrame", background="#f5f5f5")
+style.configure("TLabel", background="#f5f5f5", font=("Segoe UI", 16))
+style.configure("TButton", font=("Segoe UI", 14), padding=6)
+style.configure("TEntry", font=("Segoe UI", 14), padding=6)
 
 
 # --- Handle Ctrl+C and window close instantly ---
@@ -42,11 +52,19 @@ def _exit_on_close():
 
 root.protocol("WM_DELETE_WINDOW", _exit_on_close)
 
+# --- Header ---
+header_frame = ttk.Frame(root)
+header_frame.pack(side=tk.TOP, fill=tk.X, pady=(20, 10))
+header_label = ttk.Label(
+    header_frame, text="🌍 World Countries Quiz", font=("Segoe UI", 24, "bold")
+)
+header_label.pack(anchor="center")
+
 # --- Matplotlib figure inside Tkinter ---
 fig, ax = plt.subplots(figsize=(12, 6))
-fig.subplots_adjust(left=0, right=1, top=1, bottom=0)  # remove extra figure padding
+fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
 canvas = FigureCanvasTkAgg(fig, master=root)
-canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1)
+canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1, padx=20, pady=10)
 
 # Fixed axis limits
 minx, miny, maxx, maxy = world.total_bounds
@@ -55,11 +73,8 @@ ax.set_ylim(miny, maxy)
 ax.set_aspect("equal")
 ax.axis("off")
 ax.autoscale(False)
-
-ax.margins(0)  # remove extra margins
-
-# Set map background to light blue
-ax.set_facecolor("#b3d1ff")  # light blue
+ax.margins(0)
+ax.set_facecolor("#b3d1ff")
 
 highlight_patches = []
 
@@ -67,21 +82,20 @@ highlight_patches = []
 world.boundary.plot(ax=ax, linewidth=0.5, color="dimgray", zorder=1)
 
 # --- Input field, button, and feedback ---
-bottom_frame = tk.Frame(root)
-bottom_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=5)
+bottom_frame = ttk.Frame(root)
+bottom_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=20)
 
 # Center-aligned feedback text
-feedback_label = tk.Label(
-    bottom_frame, text="Guess the highlighted country", font=("Arial", 16)
+feedback_label = ttk.Label(
+    bottom_frame, text="Guess the highlighted country", font=("Segoe UI", 16)
 )
-feedback_label.pack(side=tk.TOP, pady=2)
-feedback_label.pack_configure(anchor="center")  # center alignment
+feedback_label.pack(side=tk.TOP, pady=8, anchor="center")
 
-entry_frame = tk.Frame(bottom_frame)
-entry_frame.pack(side=tk.TOP, fill=tk.X)
+entry_frame = ttk.Frame(bottom_frame)
+entry_frame.pack(side=tk.TOP, fill=tk.X, padx=20)
 
-entry = tk.Entry(entry_frame, font=("Arial", 14))
-entry.pack(side=tk.LEFT, fill=tk.X, expand=1)
+entry = ttk.Entry(entry_frame, font=("Segoe UI", 14))
+entry.pack(side=tk.LEFT, fill=tk.X, expand=1, padx=(0, 10))
 entry.focus()
 
 
@@ -188,7 +202,7 @@ def end_game():
     draw_map()
     feedback_label.config(
         text=f"🎯 Game over! You guessed {len(guessed_countries)} countries correctly.",
-        fg="blue",
+        foreground="blue",  # ttk uses 'foreground'
     )
     submit_button.config(state=tk.DISABLED)
     entry.config(state=tk.DISABLED)
@@ -200,7 +214,9 @@ def submit_guess(event=None):
     guess = entry.get().strip()
     entry.delete(0, tk.END)
     if not guess:
-        feedback_label.config(text=f"⏭️ Skipped! It was {current_country}.", fg="orange")
+        feedback_label.config(
+            text=f"⏭️ Skipped! It was {current_country}.", foreground="orange"
+        )
         remaining_countries.discard(current_country)
         if remaining_countries:
             current_country = random.choice(list(remaining_countries))
@@ -211,9 +227,13 @@ def submit_guess(event=None):
 
     if guess.lower() == current_country.lower():
         guessed_countries.add(current_country)
-        feedback_label.config(text=f"✅ Correct! It was {current_country}.", fg="green")
+        feedback_label.config(
+            text=f"✅ Correct! It was {current_country}.", foreground="green"
+        )
     else:
-        feedback_label.config(text=f"❌ Wrong! It was {current_country}.", fg="red")
+        feedback_label.config(
+            text=f"❌ Wrong! It was {current_country}.", foreground="red"
+        )
 
     remaining_countries.discard(current_country)
 
@@ -225,9 +245,7 @@ def submit_guess(event=None):
     update_counter()
 
 
-submit_button = tk.Button(
-    entry_frame, text="Submit", font=("Arial", 14), command=submit_guess
-)
+submit_button = ttk.Button(entry_frame, text="Submit", command=submit_guess)
 submit_button.pack(side=tk.RIGHT)
 
 entry.bind("<Return>", submit_guess)
