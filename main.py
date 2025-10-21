@@ -90,11 +90,15 @@ main_frame.columnconfigure(0, weight=3)
 main_frame.rowconfigure(0, weight=1)
 
 canvas = FigureCanvasTkAgg(fig, master=map_frame)
-canvas.get_tk_widget().pack(fill=tk.BOTH, expand=1, padx=20, pady=10)
+canvas.get_tk_widget().pack(
+    fill=tk.BOTH, expand=1, padx=0, pady=0
+)  # No padding for map
 
 # Right column: controls (fixed width)
 controls_frame = ttk.Frame(main_frame, width=300)
-controls_frame.grid(row=0, column=1, sticky="ns", padx=20, pady=10)
+controls_frame.grid(
+    row=0, column=1, sticky="ns", padx=10, pady=10
+)  # <-- Remove horizontal padding
 main_frame.columnconfigure(1, weight=0)  # Prevent stretching
 
 controls_frame.pack_propagate(False)  # Prevent shrinking when window is resized
