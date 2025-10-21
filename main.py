@@ -8,8 +8,9 @@ import signal
 import sys
 import pycountry
 import requests
-from PIL import Image, ImageTk
+from PIL import Image
 import io
+
 
 # --- Load world map ---
 WORLD_GEOJSON_URL = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_110m_admin_0_countries.geojson"
@@ -29,11 +30,16 @@ root.geometry("1200x700")  # default window size
 def _exit_on_sigint(signum, frame):
     root.destroy()
     sys.exit(0)
+
+
 signal.signal(signal.SIGINT, _exit_on_sigint)
+
 
 def _exit_on_close():
     root.destroy()
     sys.exit(0)
+
+
 root.protocol("WM_DELETE_WINDOW", _exit_on_close)
 
 # --- Matplotlib figure inside Tkinter ---
@@ -65,7 +71,9 @@ bottom_frame = tk.Frame(root)
 bottom_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=5)
 
 # Center-aligned feedback text
-feedback_label = tk.Label(bottom_frame, text="Guess the highlighted country", font=("Arial", 16))
+feedback_label = tk.Label(
+    bottom_frame, text="Guess the highlighted country", font=("Arial", 16)
+)
 feedback_label.pack(side=tk.TOP, pady=2)
 feedback_label.pack_configure(anchor="center")  # center alignment
 
@@ -76,38 +84,52 @@ entry = tk.Entry(entry_frame, font=("Arial", 14))
 entry.pack(side=tk.LEFT, fill=tk.X, expand=1)
 entry.focus()
 
+
 # --- Helper functions ---
 def draw_country_highlight(country_name, color):
     country = world[world["NAME"] == country_name]
     for geom in country.geometry:
         if geom.geom_type == "Polygon":
-            poly = Polygon(list(geom.exterior.coords), facecolor=color, edgecolor="dimgray", zorder=2)
+            poly = Polygon(
+                list(geom.exterior.coords),
+                facecolor=color,
+                edgecolor="dimgray",
+                zorder=2,
+            )
             ax.add_patch(poly)
             highlight_patches.append(poly)
         elif geom.geom_type == "MultiPolygon":
             for part in geom.geoms:
-                poly = Polygon(list(part.exterior.coords), facecolor=color, edgecolor="dimgray", zorder=2)
+                poly = Polygon(
+                    list(part.exterior.coords),
+                    facecolor=color,
+                    edgecolor="dimgray",
+                    zorder=2,
+                )
                 ax.add_patch(poly)
                 highlight_patches.append(poly)
+
 
 def get_flag_image(country_name):
     """Return a PIL image of the flag for the given country name, or None if not found."""
     try:
         country = pycountry.countries.lookup(country_name)
         code = country.alpha_2.lower()
-        url = f'https://flagcdn.com/w80/{code}.png'
+        url = f"https://flagcdn.com/w80/{code}.png"
         resp = requests.get(url, timeout=5)
         resp.raise_for_status()
-        img = Image.open(io.BytesIO(resp.content)).convert('RGBA')
+        img = Image.open(io.BytesIO(resp.content)).convert("RGBA")
         img = img.resize((80, 48), Image.Resampling.LANCZOS)
         return img
     except Exception:
         return None
 
+
 def update_counter():
     guessed = len(guessed_countries)
     total = len(countries)
     root.title(f"World Countries Guessing Game ({guessed}/{total})")
+
 
 def draw_map(current_country=None):
     for patch in highlight_patches:
@@ -115,7 +137,14 @@ def draw_map(current_country=None):
     highlight_patches.clear()
 
     # Draw ocean background as a large blue rectangle
-    ocean_rect = Rectangle((minx, miny), maxx - minx, maxy - miny, facecolor="#b3d1ff", edgecolor=None, zorder=0)
+    ocean_rect = Rectangle(
+        (minx, miny),
+        maxx - minx,
+        maxy - miny,
+        facecolor="#b3d1ff",
+        edgecolor=None,
+        zorder=0,
+    )
     ax.add_patch(ocean_rect)
     highlight_patches.append(ocean_rect)
 
@@ -133,12 +162,12 @@ def draw_map(current_country=None):
                 np = None
             if np:
                 flag_np = np.array(flag_img)
-                flag_width = (maxx-minx)*0.12
-                flag_height = (maxy-miny)*0.12
+                flag_width = (maxx - minx) * 0.12
+                flag_height = (maxy - miny) * 0.12
                 ax.imshow(
                     flag_np,
                     extent=[maxx - flag_width, maxx, miny, miny + flag_height],
-                    zorder=100
+                    zorder=100,
                 )
     # Legend
     legend_elements = [
@@ -149,18 +178,22 @@ def draw_map(current_country=None):
     canvas.draw()
     update_counter()
 
+
 # Pick first random country
 current_country = random.choice(list(remaining_countries))
 draw_map(current_country)
 
 
-
 def end_game():
     draw_map()
-    feedback_label.config(text=f"🎯 Game over! You guessed {len(guessed_countries)} countries correctly.", fg="blue")
+    feedback_label.config(
+        text=f"🎯 Game over! You guessed {len(guessed_countries)} countries correctly.",
+        fg="blue",
+    )
     submit_button.config(state=tk.DISABLED)
     entry.config(state=tk.DISABLED)
     update_counter()
+
 
 def submit_guess(event=None):
     global current_country
@@ -191,7 +224,10 @@ def submit_guess(event=None):
         end_game()
     update_counter()
 
-submit_button = tk.Button(entry_frame, text="Submit", font=("Arial", 14), command=submit_guess)
+
+submit_button = tk.Button(
+    entry_frame, text="Submit", font=("Arial", 14), command=submit_guess
+)
 submit_button.pack(side=tk.RIGHT)
 
 entry.bind("<Return>", submit_guess)

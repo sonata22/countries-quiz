@@ -3,3 +3,5 @@ matplotlib
 requests
 Pillow
 pycountry
+ruff
+pre-commit

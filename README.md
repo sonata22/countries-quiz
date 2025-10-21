@@ -13,3 +13,9 @@ streamlit run main.py
 ```
 pip freeze | xargs pip uninstall -y
 ```
+
+## Run ruff
+```
+ruff check
+ruff format
+```
