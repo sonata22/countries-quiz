@@ -20,6 +20,10 @@ countries = list(world["NAME"].dropna())
 remaining_countries = set(countries)
 guessed_countries = set()
 
+highlight_patches = []
+
+minx, miny, maxx, maxy = world.total_bounds
+
 
 # --- Tkinter setup ---
 root = tk.Tk()
@@ -59,8 +63,7 @@ fig.subplots_adjust(left=0, right=1, top=1, bottom=0)
 canvas = FigureCanvasTkAgg(fig, master=root)
 canvas.get_tk_widget().pack(side=tk.TOP, fill=tk.BOTH, expand=1, padx=20, pady=10)
 
-# Fixed axis limits
-minx, miny, maxx, maxy = world.total_bounds
+# Set default zoom to fit the map to the window width
 ax.set_xlim(minx, maxx)
 ax.set_ylim(miny, maxy)
 ax.set_aspect("equal")
@@ -69,10 +72,38 @@ ax.autoscale(False)
 ax.margins(0)
 ax.set_facecolor("#b3d1ff")
 
-highlight_patches = []
-
-# Plot base boundaries once (dark gray)
+# Draw country borders for visibility
 world.boundary.plot(ax=ax, linewidth=0.5, color="dimgray", zorder=1)
+
+# --- Zoom controls ---
+zoom_frame = ttk.Frame(root)
+zoom_frame.pack(side=tk.TOP, pady=(0, 10))
+
+
+def zoom(factor):
+    cur_xlim = ax.get_xlim()
+    cur_ylim = ax.get_ylim()
+    x_center = (cur_xlim[0] + cur_xlim[1]) / 2
+    y_center = (cur_ylim[0] + cur_ylim[1]) / 2
+    x_range = (cur_xlim[1] - cur_xlim[0]) * factor / 2
+    y_range = (cur_ylim[1] - cur_ylim[0]) * factor / 2
+    ax.set_xlim(x_center - x_range, x_center + x_range)
+    ax.set_ylim(y_center - y_range, y_center + y_range)
+    canvas.draw()
+
+
+def zoom_in():
+    zoom(0.8)  # Zoom in (smaller range)
+
+
+def zoom_out():
+    zoom(1.25)  # Zoom out (larger range)
+
+
+zoom_in_btn = ttk.Button(zoom_frame, text="+", width=3, command=zoom_in)
+zoom_in_btn.pack(side=tk.LEFT, padx=5)
+zoom_out_btn = ttk.Button(zoom_frame, text="-", width=3, command=zoom_out)
+zoom_out_btn.pack(side=tk.LEFT, padx=5)
 
 # --- Input field, button, and feedback ---
 bottom_frame = ttk.Frame(root)
