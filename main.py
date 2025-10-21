@@ -75,36 +75,6 @@ ax.set_facecolor("#b3d1ff")
 # Draw country borders for visibility
 world.boundary.plot(ax=ax, linewidth=0.5, color="dimgray", zorder=1)
 
-# --- Zoom controls ---
-zoom_frame = ttk.Frame(root)
-zoom_frame.pack(side=tk.TOP, pady=(0, 10))
-
-
-def zoom(factor):
-    cur_xlim = ax.get_xlim()
-    cur_ylim = ax.get_ylim()
-    x_center = (cur_xlim[0] + cur_xlim[1]) / 2
-    y_center = (cur_ylim[0] + cur_ylim[1]) / 2
-    x_range = (cur_xlim[1] - cur_xlim[0]) * factor / 2
-    y_range = (cur_ylim[1] - cur_ylim[0]) * factor / 2
-    ax.set_xlim(x_center - x_range, x_center + x_range)
-    ax.set_ylim(y_center - y_range, y_center + y_range)
-    canvas.draw()
-
-
-def zoom_in():
-    zoom(0.8)  # Zoom in (smaller range)
-
-
-def zoom_out():
-    zoom(1.25)  # Zoom out (larger range)
-
-
-zoom_in_btn = ttk.Button(zoom_frame, text="+", width=3, command=zoom_in)
-zoom_in_btn.pack(side=tk.LEFT, padx=5)
-zoom_out_btn = ttk.Button(zoom_frame, text="-", width=3, command=zoom_out)
-zoom_out_btn.pack(side=tk.LEFT, padx=5)
-
 # --- Input field, button, and feedback ---
 bottom_frame = ttk.Frame(root)
 bottom_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=20)
@@ -273,6 +243,96 @@ submit_button = ttk.Button(entry_frame, text="Submit", command=submit_guess)
 submit_button.pack(side=tk.RIGHT)
 
 entry.bind("<Return>", submit_guess)
+
+# Store default axis limits for reference
+DEFAULT_XLIM = (minx, maxx)
+DEFAULT_YLIM = (miny, maxy)
+
+
+def zoom(factor, center=None):
+    # Always use the default aspect ratio for zoom calculations
+    cur_xlim = ax.get_xlim()
+    cur_ylim = ax.get_ylim()
+    default_x_range = DEFAULT_XLIM[1] - DEFAULT_XLIM[0]
+    default_y_range = DEFAULT_YLIM[1] - DEFAULT_YLIM[0]
+    aspect = default_y_range / default_x_range
+
+    if center is None:
+        x_center = (cur_xlim[0] + cur_xlim[1]) / 2
+        y_center = (cur_ylim[0] + cur_ylim[1]) / 2
+    else:
+        x_center, y_center = center
+
+    # Calculate new x range and y range based on aspect ratio
+    x_range = cur_xlim[1] - cur_xlim[0]
+    new_x_range = x_range * factor
+    new_y_range = new_x_range * aspect
+
+    # Clamp zoom out to default limits
+    if new_x_range >= default_x_range or new_y_range >= default_y_range:
+        # Always reset to default limits and aspect ratio
+        new_xlim = DEFAULT_XLIM
+        new_ylim = DEFAULT_YLIM
+    else:
+        # Prevent zooming in too far (minimum range)
+        min_x_range = default_x_range * 0.05
+        min_y_range = default_y_range * 0.05
+        if new_x_range < min_x_range:
+            new_x_range = min_x_range
+            new_y_range = min_y_range
+
+        # Calculate new limits centered at cursor
+        new_xlim = (x_center - new_x_range / 2, x_center + new_x_range / 2)
+        new_ylim = (y_center - new_y_range / 2, y_center + new_y_range / 2)
+
+        # Clamp to default bounds if needed (for zoom in)
+        # Clamp x
+        if new_xlim[0] < DEFAULT_XLIM[0]:
+            shift = DEFAULT_XLIM[0] - new_xlim[0]
+            new_xlim = (DEFAULT_XLIM[0], new_xlim[1] + shift)
+        if new_xlim[1] > DEFAULT_XLIM[1]:
+            shift = new_xlim[1] - DEFAULT_XLIM[1]
+            new_xlim = (new_xlim[0] - shift, DEFAULT_XLIM[1])
+        # Clamp y
+        if new_ylim[0] < DEFAULT_YLIM[0]:
+            shift = DEFAULT_YLIM[0] - new_ylim[0]
+            new_ylim = (DEFAULT_YLIM[0], new_ylim[1] + shift)
+        if new_ylim[1] > DEFAULT_YLIM[1]:
+            shift = new_ylim[1] - DEFAULT_YLIM[1]
+            new_ylim = (new_ylim[0] - shift, DEFAULT_YLIM[1])
+
+    ax.set_xlim(new_xlim)
+    ax.set_ylim(new_ylim)
+    ax.set_aspect("equal")  # Always keep aspect ratio
+    ax.autoscale(False)
+    ax.margins(0)
+    canvas.draw()
+
+
+# --- Mouse wheel zoom at cursor position ---
+def on_mouse_wheel(event):
+    x_pixel = event.x
+    y_pixel = event.y
+
+    # Convert pixel position to axes coordinates
+    inv = ax.transData.inverted()
+    xdata, ydata = inv.transform((x_pixel, y_pixel))
+
+    # Zoom factor
+    if hasattr(event, "delta"):
+        factor = 0.8 if event.delta > 0 else 1.25
+    elif hasattr(event, "num"):
+        factor = 0.8 if event.num == 4 else 1.25
+    else:
+        factor = 1.0
+
+    zoom(factor, center=(xdata, ydata))
+
+
+# Bind mouse wheel to zoom at cursor
+canvas.get_tk_widget().bind("<MouseWheel>", on_mouse_wheel)  # Windows/macOS
+canvas.get_tk_widget().bind("<Button-4>", on_mouse_wheel)  # Linux scroll up
+canvas.get_tk_widget().bind("<Button-5>", on_mouse_wheel)  # Linux scroll down
 
 # --- Start Tkinter loop ---
 root.mainloop()
