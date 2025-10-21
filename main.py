@@ -11,6 +11,7 @@ import pycountry
 import requests
 from PIL import Image
 import io
+import time
 
 
 # --- Load world map ---
@@ -249,6 +250,32 @@ DEFAULT_XLIM = (minx, maxx)
 DEFAULT_YLIM = (miny, maxy)
 
 
+def animate_zoom(
+    target_xlim, target_ylim, steps=15, duration=0.01
+):  # duration quartered
+    start_xlim = ax.get_xlim()
+    start_ylim = ax.get_ylim()
+    for i in range(1, steps + 1):
+        t = i / steps
+        # Linear interpolation
+        new_xlim = (
+            start_xlim[0] + (target_xlim[0] - start_xlim[0]) * t,
+            start_xlim[1] + (target_xlim[1] - start_xlim[1]) * t,
+        )
+        new_ylim = (
+            start_ylim[0] + (target_ylim[0] - start_ylim[0]) * t,
+            start_ylim[1] + (target_ylim[1] - start_ylim[1]) * t,
+        )
+        ax.set_xlim(new_xlim)
+        ax.set_ylim(new_ylim)
+        ax.set_aspect("equal")
+        ax.autoscale(False)
+        ax.margins(0)
+        canvas.draw()
+        root.update_idletasks()
+        time.sleep(duration / steps)
+
+
 def zoom(factor, center=None):
     cur_xlim = ax.get_xlim()
     cur_ylim = ax.get_ylim()
@@ -266,42 +293,37 @@ def zoom(factor, center=None):
     new_x_range = x_range * factor
     new_y_range = new_x_range * aspect
 
-    # Prevent zooming in beyond 500% (minimum range)
-    min_x_range = default_x_range / 5.0
-    min_y_range = default_y_range / 5.0
+    # Prevent zooming in beyond 300% (minimum range)
+    min_x_range = default_x_range / 3.0
+    min_y_range = default_y_range / 3.0
     if new_x_range < min_x_range or new_y_range < min_y_range:
         # Do nothing: keep current limits, don't recenter
-        new_xlim = cur_xlim
-        new_ylim = cur_ylim
+        target_xlim = cur_xlim
+        target_ylim = cur_ylim
     # Clamp zoom out to default limits
     elif new_x_range >= default_x_range or new_y_range >= default_y_range:
-        new_xlim = DEFAULT_XLIM
-        new_ylim = DEFAULT_YLIM
+        target_xlim = DEFAULT_XLIM
+        target_ylim = DEFAULT_YLIM
     else:
         # Calculate new limits centered at cursor
-        new_xlim = (x_center - new_x_range / 2, x_center + new_x_range / 2)
-        new_ylim = (y_center - new_y_range / 2, y_center + new_y_range / 2)
+        target_xlim = (x_center - new_x_range / 2, x_center + new_x_range / 2)
+        target_ylim = (y_center - new_y_range / 2, y_center + new_y_range / 2)
 
         # Clamp to default bounds as usual
-        if new_xlim[0] < DEFAULT_XLIM[0]:
-            shift = DEFAULT_XLIM[0] - new_xlim[0]
-            new_xlim = (DEFAULT_XLIM[0], new_xlim[1] + shift)
-        if new_xlim[1] > DEFAULT_XLIM[1]:
-            shift = new_xlim[1] - DEFAULT_XLIM[1]
-            new_xlim = (new_xlim[0] - shift, DEFAULT_XLIM[1])
-        if new_ylim[0] < DEFAULT_YLIM[0]:
-            shift = DEFAULT_YLIM[0] - new_ylim[0]
-            new_ylim = (DEFAULT_YLIM[0], new_ylim[1] + shift)
-        if new_ylim[1] > DEFAULT_YLIM[1]:
-            shift = new_ylim[1] - DEFAULT_YLIM[1]
-            new_ylim = (new_ylim[0] - shift, DEFAULT_YLIM[1])
+        if target_xlim[0] < DEFAULT_XLIM[0]:
+            shift = DEFAULT_XLIM[0] - target_xlim[0]
+            target_xlim = (DEFAULT_XLIM[0], target_xlim[1] + shift)
+        if target_xlim[1] > DEFAULT_XLIM[1]:
+            shift = target_xlim[1] - DEFAULT_XLIM[1]
+            target_xlim = (target_xlim[0] - shift, DEFAULT_XLIM[1])
+        if target_ylim[0] < DEFAULT_YLIM[0]:
+            shift = DEFAULT_YLIM[0] - target_ylim[0]
+            target_ylim = (DEFAULT_YLIM[0], target_ylim[1] + shift)
+        if target_ylim[1] > DEFAULT_YLIM[1]:
+            shift = target_ylim[1] - DEFAULT_YLIM[1]
+            target_ylim = (target_ylim[0] - shift, DEFAULT_YLIM[1])
 
-    ax.set_xlim(new_xlim)
-    ax.set_ylim(new_ylim)
-    ax.set_aspect("equal")
-    ax.autoscale(False)
-    ax.margins(0)
-    canvas.draw()
+    animate_zoom(target_xlim, target_ylim)
 
 
 # --- Mouse wheel zoom at cursor position ---
