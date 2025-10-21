@@ -9,7 +9,7 @@ import signal
 import sys
 import pycountry
 import requests
-from PIL import Image
+from PIL import Image, ImageTk  # Add ImageTk here
 import io
 
 
@@ -31,7 +31,7 @@ DEFAULT_YLIM = (miny, maxy)
 # --- Tkinter setup ---
 root = tk.Tk()
 root.title("World Countries Guessing Game")
-root.geometry("1200x700")
+root.geometry("1920x1080")
 root.configure(bg="#f5f5f5")  # MODERN BG
 
 # --- Modern ttk style ---
@@ -104,7 +104,7 @@ main_frame.columnconfigure(1, weight=0)  # Prevent stretching
 controls_frame.pack_propagate(False)  # Prevent shrinking when window is resized
 
 feedback_label = ttk.Label(
-    controls_frame, text="Guess the highlighted country", font=("Segoe UI", 16)
+    controls_frame, text="Which country is highlighted?", font=("Segoe UI", 16)
 )
 feedback_label.pack(side=tk.TOP, pady=8, anchor="center")
 
@@ -120,7 +120,23 @@ def submit_guess(event=None):
     guess = entry.get().strip()
     entry.delete(0, tk.END)
     reset_map_zoom()
+
+    # Prepare last country and flag info
+    last_country = current_country
+    flag_img = get_flag_image(last_country)
+    flag_photo = None
+    if flag_img:
+        flag_photo = ImageTk.PhotoImage(flag_img)
+        flag_label.config(image=flag_photo)
+        flag_label.image = flag_photo
+    else:
+        flag_label.config(image="")
+        flag_label.image = None
+
+    last_country_label.config(text=last_country)
+
     if not guess:
+        attempt_result_label.config(text="Skipped", foreground="orange")
         feedback_label.config(
             text=f"⏭️ Skipped! It was {current_country}.", foreground="orange"
         )
@@ -133,11 +149,13 @@ def submit_guess(event=None):
         return
 
     if guess.lower() == current_country.lower():
+        attempt_result_label.config(text="Correct", foreground="green")
         guessed_countries.add(current_country)
         feedback_label.config(
             text=f"✅ Correct! It was {current_country}.", foreground="green"
         )
     else:
+        attempt_result_label.config(text="Wrong", foreground="red")
         feedback_label.config(
             text=f"❌ Wrong! It was {current_country}.", foreground="red"
         )
@@ -412,6 +430,23 @@ def zoom(factor, center=None):
     ax.margins(0)
     canvas.draw()
 
+
+# ...after submit_button.pack(...) and before root.mainloop()...
+
+divider = ttk.Separator(controls_frame, orient="horizontal")
+divider.pack(side=tk.TOP, fill=tk.X, pady=10)
+
+result_frame = ttk.Frame(controls_frame)
+result_frame.pack(side=tk.TOP, fill=tk.X, pady=5)
+
+last_country_label = ttk.Label(result_frame, text="", font=("Segoe UI", 14))
+last_country_label.pack(side=tk.TOP, pady=(0, 5))
+
+flag_label = ttk.Label(result_frame)
+flag_label.pack(side=tk.TOP, pady=(0, 5))
+
+attempt_result_label = ttk.Label(result_frame, text="", font=("Segoe UI", 14))
+attempt_result_label.pack(side=tk.TOP, pady=(0, 5))
 
 # --- Start Tkinter loop ---
 root.mainloop()
