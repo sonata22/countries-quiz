@@ -204,10 +204,20 @@ def end_game():
     update_counter()
 
 
+def reset_map_zoom():
+    ax.set_xlim(DEFAULT_XLIM)
+    ax.set_ylim(DEFAULT_YLIM)
+    ax.set_aspect("equal")
+    ax.autoscale(False)
+    ax.margins(0)
+    canvas.draw()
+
+
 def submit_guess(event=None):
     global current_country
     guess = entry.get().strip()
     entry.delete(0, tk.END)
+    reset_map_zoom()  # <-- Reset zoom to default on submit
     if not guess:
         feedback_label.config(
             text=f"⏭️ Skipped! It was {current_country}.", foreground="orange"
